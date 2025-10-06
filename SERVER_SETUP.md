@@ -28,43 +28,27 @@ git clone git@github.com:zachflem/ArcheryTracker.git
 cd ArcheryTracker
 ```
 
-## Step 2: Configure Environment Variables
+## Step 2: Run the Application
 
-1. Create a `.env` file for the backend by copying the example:
-
-```bash
-cp backend/.env.example backend/.env
-```
-
-2. Edit the backend `.env` file to set up your environment:
-
-```bash
-nano backend/.env
-```
-
-Ensure you configure the following values:
-
-- `MONGODB_URI`: Your MongoDB connection string
-- `JWT_SECRET`: A secure random string for JWT token encryption
-- `JWT_EXPIRE`: Token expiration time (e.g., '30d' for 30 days)
-- `PORT`: The port for the backend server (default: 5000)
-
-## Step 3: Run the Application
-
-The application is containerized with Docker, so you can run it easily using the deployment script:
+The application is containerized with Docker, and can be deployed with a single command using the deployment script:
 
 ```bash
 chmod +x deploy.sh
 ./deploy.sh
 ```
 
-This script will:
-- Build the Docker images for frontend and backend
-- Start the containers with Docker Compose
-- Set up the NGINX reverse proxy
-- Initialize the MongoDB database
+This script handles everything automatically:
+- Creates and configures the backend `.env` file if it doesn't exist
+- Generates a secure random JWT_SECRET
+- Guides you through email configuration setup
+- Builds the Docker images for frontend and backend
+- Starts the containers with Docker Compose
+- Sets up the NGINX reverse proxy
+- Initializes the MongoDB database
 
-## Step 4: Access the Application
+The deploy.sh script is interactive and will prompt you for any required configuration. You can simply accept the default values by pressing Enter, or provide your own settings.
+
+## Step 3: Access the Application
 
 Once the containers are running, you can access the application at:
 
