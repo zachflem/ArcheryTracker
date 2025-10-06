@@ -1,0 +1,175 @@
+#!/bin/bash
+
+# ArcheryTracker.io Application Deployment Script
+# This script generates a .env file and deploys the application using Docker
+
+# Colors for terminal output
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
+echo -e "${GREEN}=== ArcheryTracker.io Deployment Script ===${NC}"
+echo "This script will set up your environment and deploy the application."
+
+# Check if Docker is installed
+if ! command -v docker &> /dev/null; then
+    echo -e "${RED}Error: Docker is not installed. Please install Docker first.${NC}"
+    exit 1
+fi
+
+# Check if Docker Compose is installed
+if ! docker compose version &> /dev/null; then
+    echo -e "${RED}Error: Docker Compose plugin is not installed or not working. Please install Docker Compose first.${NC}"
+    exit 1
+fi
+
+# Function to generate a random string for secrets
+generate_secret() {
+    local length=$1
+    cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w $length | head -n 1
+}
+
+# Create the backend/.env file if it doesn't exist
+if [ -f backend/.env ]; then
+    echo -e "${YELLOW}A .env file already exists. Using existing configuration.${NC}"
+else
+    echo -e "${GREEN}Generating new .env file...${NC}"
+    
+    # Generate a secure JWT secret
+    JWT_SECRET=$(generate_secret 32)
+    
+    # Collect email configuration
+    echo -e "\n${YELLOW}Email Configuration${NC}"
+    echo "This information is needed for sending password reset emails and notifications."
+    
+    # Default values
+    DEFAULT_EMAIL_SERVICE="smtp"
+    DEFAULT_EMAIL_HOST="smtp.example.com"
+    DEFAULT_EMAIL_PORT="587"
+    DEFAULT_EMAIL_SECURE="false"
+    DEFAULT_EMAIL_USERNAME="your_email@example.com"
+    DEFAULT_EMAIL_PASSWORD="your_password"
+    DEFAULT_EMAIL_FROM="noreply@archeryscoretracker.com"
+    
+    # Get email configuration from user
+    read -p "Email Service Type (smtp/gmail, default: smtp): " EMAIL_SERVICE
+    EMAIL_SERVICE=${EMAIL_SERVICE:-$DEFAULT_EMAIL_SERVICE}
+    
+    if [[ $EMAIL_SERVICE == "smtp" ]]; then
+        read -p "SMTP Host (default: smtp.example.com): " EMAIL_HOST
+        EMAIL_HOST=${EMAIL_HOST:-$DEFAULT_EMAIL_HOST}
+        
+        read -p "SMTP Port (default: 587): " EMAIL_PORT
+        EMAIL_PORT=${EMAIL_PORT:-$DEFAULT_EMAIL_PORT}
+        
+        read -p "Use Secure Connection (true/false, default: false): " EMAIL_SECURE
+        EMAIL_SECURE=${EMAIL_SECURE:-$DEFAULT_EMAIL_SECURE}
+    fi
+    
+    read -p "Email Username (default: your_email@example.com): " EMAIL_USERNAME
+    EMAIL_USERNAME=${EMAIL_USERNAME:-$DEFAULT_EMAIL_USERNAME}
+    
+    read -p "Email Password (default: your_password): " EMAIL_PASSWORD
+    EMAIL_PASSWORD=${EMAIL_PASSWORD:-$DEFAULT_EMAIL_PASSWORD}
+    
+    read -p "From Email Address (default: noreply@archeryscoretracker.com): " EMAIL_FROM
+    EMAIL_FROM=${EMAIL_FROM:-$DEFAULT_EMAIL_FROM}
+    
+    # Create .env file with configuration
+    cat > backend/.env << EOF
+# Environment
+NODE_ENV=production
+PORT=5000
+
+# Database
+MONGO_URI=mongodb://mongodb:27017/archery_tracker
+
+# Authentication
+JWT_SECRET=${JWT_SECRET}
+JWT_EXPIRE=30d
+
+# Email Configuration
+EMAIL_SERVICE=${EMAIL_SERVICE}
+EOF
+
+    # Add SMTP-specific settings if using SMTP
+    if [[ $EMAIL_SERVICE == "smtp" ]]; then
+    cat >> backend/.env << EOF
+EMAIL_HOST=${EMAIL_HOST}
+EMAIL_PORT=${EMAIL_PORT}
+EMAIL_SECURE=${EMAIL_SECURE}
+EOF
+    fi
+
+    # Continue with rest of email settings
+    cat >> backend/.env << EOF
+EMAIL_USERNAME=${EMAIL_USERNAME}
+EMAIL_PASSWORD=${EMAIL_PASSWORD}
+EMAIL_FROM=${EMAIL_FROM}
+
+# File storage paths
+BACKUP_DIR=/app/uploads/backups
+IMAGES_DIR=/app/uploads/images
+QRCODES_DIR=/app/uploads/qrcodes
+
+# Maximum file upload size (in bytes, default 1MB) [ZF Edited - max file upload set to 10MB]
+MAX_FILE_UPLOAD=10000000
+EOF
+
+    echo -e "${GREEN}Successfully created .env file with email configuration.${NC}"
+fi
+
+# Check if we're in development or production mode
+read -p "Deploy in development mode? (y/n, default: n): " DEV_MODE
+DEV_MODE=${DEV_MODE:-n}
+
+# Build and start the Docker containers
+echo -e "${GREEN}Building and starting Docker containers...${NC}"
+
+# Try to fix Docker credential issues
+echo "Resetting Docker credential helper..."
+
+# Create a local Docker config that disables credential helpers
+mkdir -p .docker
+cat > .docker/config.json << EOF
+{
+  "credsStore": "",
+  "auths": {}
+}
+EOF
+
+# Set Docker to use our local config
+export DOCKER_CONFIG=$(pwd)/.docker
+echo "Using local Docker configuration to avoid credential issues"
+
+if [[ $DEV_MODE == "y" || $DEV_MODE == "Y" ]]; then
+    echo "Starting in development mode with live reload..."
+    # Build containers individually to avoid buildx issues
+    echo "Building backend..."
+    docker build -t archeryapp-backend -f docker/Dockerfile.backend .
+    echo "Building frontend..."
+    docker build -t archeryapp-frontend -f docker/Dockerfile.frontend .
+    echo "Starting containers..."
+    docker compose up
+else
+    echo "Starting in production mode..."
+    # Build containers individually to avoid buildx issues
+    echo "Building backend..."
+    docker build -t archeryapp-backend -f docker/Dockerfile.backend .
+    echo "Building frontend..."
+    docker build -t archeryapp-frontend -f docker/Dockerfile.frontend .
+    echo "Starting containers..."
+    docker compose up -d
+    
+    # Show container status
+    echo -e "${GREEN}Containers started in detached mode. Status:${NC}"
+    docker compose ps
+    
+    # Show access information
+    echo -e "\n${GREEN}Application deployed successfully!${NC}"
+    echo -e "Frontend: http://localhost:80"
+    echo -e "Backend API: http://localhost:5000"
+    echo -e "\nTo view logs, run: docker compose logs -f"
+    echo -e "To stop the application, run: docker compose down"
+fi

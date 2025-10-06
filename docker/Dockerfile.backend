@@ -1,0 +1,16 @@
+FROM node:16-alpine
+
+WORKDIR /app
+
+COPY ./backend/package*.json ./
+
+RUN npm install --no-fund --no-audit
+
+COPY ./backend .
+
+# Create upload directories
+RUN mkdir -p uploads/qrcodes uploads/images uploads/backups
+
+EXPOSE 5000
+
+CMD ["npm", "start"]
