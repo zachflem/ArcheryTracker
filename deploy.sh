@@ -24,6 +24,34 @@ if ! docker compose version &> /dev/null; then
     exit 1
 fi
 
+# Port selection for frontend
+echo -e "\n${GREEN}Port Configuration${NC}"
+echo "Choose a port for the frontend application:"
+echo "1) Use suggested default port (8080)"
+echo "2) Generate a random port"
+echo "3) Use port 80 (WARNING: May cause conflicts)"
+
+read -p "Enter your choice (1-3): " PORT_CHOICE
+
+case $PORT_CHOICE in
+    1)
+        PORT=8080
+        ;;
+    2)
+        PORT=$((8080 + RANDOM % 1920))  # Generates random port between 8080-9999
+        ;;
+    3)
+        PORT=80
+        echo -e "${RED}WARNING: Port 80 may cause conflicts with existing applications!${NC}"
+        ;;
+    *)
+        echo -e "${RED}Invalid choice. Using default port 8080.${NC}"
+        PORT=8080
+        ;;
+esac
+
+echo -e "${GREEN}Selected frontend port: ${PORT}${NC}"
+
 # Function to generate a random string for secrets
 generate_secret() {
     local length=$1
@@ -124,6 +152,9 @@ fi
 read -p "Deploy in development mode? (y/n, default: n): " DEV_MODE
 DEV_MODE=${DEV_MODE:-n}
 
+# Update docker-compose.yml with selected port
+sed -i "s/\"80:80\"/\"$PORT:80\"/" docker-compose.yml
+
 # Build and start the Docker containers
 echo -e "${GREEN}Building and starting Docker containers...${NC}"
 
@@ -168,8 +199,7 @@ else
     
     # Show access information
     echo -e "\n${GREEN}Application deployed successfully!${NC}"
-    echo -e "Frontend: http://localhost:80"
-    echo -e "Backend API: http://localhost:5000"
+    echo -e "Frontend: http://localhost:${PORT}"
     echo -e "\nTo view logs, run: docker compose logs -f"
     echo -e "To stop the application, run: docker compose down"
 fi

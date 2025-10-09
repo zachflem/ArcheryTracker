@@ -8,8 +8,6 @@ services:
         - NODE_ENV=development
     container_name: archery-backend
     restart: always
-    ports:
-      - "5000:5000"
     volumes:
       - ./backend:/app
       - /app/node_modules
