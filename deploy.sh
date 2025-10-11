@@ -182,14 +182,9 @@ services:
       - MONGO_URI=mongodb://mongodb:27017/archery_tracker
       - JWT_SECRET=change_this_in_production
       - JWT_EXPIRE=30d
-EOF
-
-if [[ $INCLUDE_NPM_PROXY == "y" || $INCLUDE_NPM_PROXY == "Y" ]]; then
-cat >> docker-compose.yml << EOF
     networks:
-      - npm_proxy
+      - app_network
 EOF
-fi
 
 cat >> docker-compose.yml << EOF
 
@@ -204,11 +199,12 @@ cat >> docker-compose.yml << EOF
       - "${PORT}:80"
     depends_on:
       - backend
+    networks:
+      - app_network
 EOF
 
 if [[ $INCLUDE_NPM_PROXY == "y" || $INCLUDE_NPM_PROXY == "Y" ]]; then
 cat >> docker-compose.yml << EOF
-    networks:
       - npm_proxy
 EOF
 fi
@@ -223,14 +219,9 @@ cat >> docker-compose.yml << EOF
       - "27017:27017"
     volumes:
       - archery_mongodb_data:/data/db
-EOF
-
-if [[ $INCLUDE_NPM_PROXY == "y" || $INCLUDE_NPM_PROXY == "Y" ]]; then
-cat >> docker-compose.yml << EOF
     networks:
-      - npm_proxy
+      - app_network
 EOF
-fi
 
 cat >> docker-compose.yml << EOF
 
@@ -243,8 +234,15 @@ if [[ $INCLUDE_NPM_PROXY == "y" || $INCLUDE_NPM_PROXY == "Y" ]]; then
 cat >> docker-compose.yml << EOF
 
 networks:
+  app_network:
   npm_proxy:
     external: true
+EOF
+else
+cat >> docker-compose.yml << EOF
+
+networks:
+  app_network:
 EOF
 fi
 
