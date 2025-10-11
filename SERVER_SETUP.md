@@ -55,6 +55,17 @@ Once the containers are running, you can access the application at:
 - **Web Application**: `http://your-server-ip:3000`
 - **API**: `http://your-server-ip:5000/api`
 
+## Step 4: Create the Initial Admin User
+
+The application does not have a pre-created admin account. Instead, the **first user to register** via the web interface will automatically be assigned the `super_user` role, granting full administrative access.
+
+To create the initial admin user:
+1. Navigate to the web application URL (e.g., `http://your-server-ip:3000`).
+2. Click "Get Started" or "Create an Account".
+3. Fill out the registration form with your details.
+4. Complete the email verification if required.
+5. The first registrant will have super user privileges, including access to admin panels for managing users, clubs, and courses.
+
 ## Manual Container Management
 
 If you need to manage the containers manually, you can use the following commands:
