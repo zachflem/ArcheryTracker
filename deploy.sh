@@ -182,13 +182,23 @@ services:
       - MONGO_URI=mongodb://mongodb:27017/archery_tracker
       - JWT_SECRET=change_this_in_production
       - JWT_EXPIRE=30d
+EOF
+
+if [[ $INCLUDE_NPM_PROXY == "y" || $INCLUDE_NPM_PROXY == "Y" ]]; then
+cat >> docker-compose.yml << EOF
+    networks:
+      - npm_proxy
+EOF
+fi
+
+cat >> docker-compose.yml << EOF
 
   frontend:
     image: archeryapp-frontend
     build:
       context: .
       dockerfile: docker/Dockerfile.frontend
-    container_name: archery-frontend
+    container_name: archerytracker-frontend
     restart: always
     ports:
       - "${PORT}:80"
