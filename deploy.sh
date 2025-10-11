@@ -223,6 +223,16 @@ cat >> docker-compose.yml << EOF
       - "27017:27017"
     volumes:
       - archery_mongodb_data:/data/db
+EOF
+
+if [[ $INCLUDE_NPM_PROXY == "y" || $INCLUDE_NPM_PROXY == "Y" ]]; then
+cat >> docker-compose.yml << EOF
+    networks:
+      - npm_proxy
+EOF
+fi
+
+cat >> docker-compose.yml << EOF
 
 volumes:
   archery_mongodb_data:
