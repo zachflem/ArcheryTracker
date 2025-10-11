@@ -152,8 +152,83 @@ fi
 read -p "Deploy in development mode? (y/n, default: n): " DEV_MODE
 DEV_MODE=${DEV_MODE:-n}
 
-# Update docker-compose.yml with selected port
-sed -i "s/\"80:80\"/\"$PORT:80\"/" docker-compose.yml
+# Prompt for npm_proxy network inclusion
+read -p "Do you need to include the docker network 'npm_proxy' ? (y/n, default: n): " INCLUDE_NPM_PROXY
+INCLUDE_NPM_PROXY=${INCLUDE_NPM_PROXY:-n}
+
+# Generate docker-compose.yml dynamically
+NODE_ENV=$([[ $DEV_MODE == "y" || $DEV_MODE == "Y" ]] && echo "development" || echo "production")
+
+cat > docker-compose.yml << EOF
+services:
+  backend:
+    image: archeryapp-backend
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+      args:
+        - NODE_ENV=${NODE_ENV}
+    container_name: archery-backend
+    restart: always
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - archery_uploads:/app/uploads
+    depends_on:
+      - mongodb
+    environment:
+      - NODE_ENV=${NODE_ENV}
+      - PORT=5000
+      - MONGO_URI=mongodb://mongodb:27017/archery_tracker
+      - JWT_SECRET=change_this_in_production
+      - JWT_EXPIRE=30d
+
+  frontend:
+    image: archeryapp-frontend
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    container_name: archery-frontend
+    restart: always
+    ports:
+      - "${PORT}:80"
+    depends_on:
+      - backend
+EOF
+
+if [[ $INCLUDE_NPM_PROXY == "y" || $INCLUDE_NPM_PROXY == "Y" ]]; then
+cat >> docker-compose.yml << EOF
+    networks:
+      - npm_proxy
+EOF
+fi
+
+cat >> docker-compose.yml << EOF
+
+  mongodb:
+    image: mongo
+    container_name: archery-mongodb
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - archery_mongodb_data:/data/db
+
+volumes:
+  archery_mongodb_data:
+  archery_uploads:
+EOF
+
+if [[ $INCLUDE_NPM_PROXY == "y" || $INCLUDE_NPM_PROXY == "Y" ]]; then
+cat >> docker-compose.yml << EOF
+
+networks:
+  npm_proxy:
+    external: true
+EOF
+fi
+
+echo -e "${GREEN}Generated docker-compose.yml${NC}"
 
 # Build and start the Docker containers
 echo -e "${GREEN}Building and starting Docker containers...${NC}"
